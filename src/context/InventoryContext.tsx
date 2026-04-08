@@ -1,5 +1,5 @@
 import { createContext, useContext, type ReactNode } from 'react';
-import { useInventory } from '../hooks/useInventory';
+import { useInventory } from '@/hooks/useInventory';
 
 type InventoryContextType = ReturnType<typeof useInventory>;
 

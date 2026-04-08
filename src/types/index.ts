@@ -22,6 +22,7 @@ export interface GroceryItem {
   restockTo: number;
   lastUpdated: string;
   notes: string;
+  order?: number;
 }
 
 export interface GroceryItemWithStatus extends GroceryItem {

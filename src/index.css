@@ -4,17 +4,47 @@
   --color-primary: #1B5E20;
   --color-primary-light: #2E7D32;
   --color-primary-dark: #0D3B12;
+  --color-primary-foreground: #ffffff;
+  --color-background: #F8FAFC;
+  --color-foreground: #0f172a;
+  --color-card: #ffffff;
+  --color-card-foreground: #0f172a;
+  --color-popover: #ffffff;
+  --color-popover-foreground: #0f172a;
+  --color-secondary: #f1f5f9;
+  --color-secondary-foreground: #0f172a;
+  --color-muted: #f1f5f9;
+  --color-muted-foreground: #64748b;
+  --color-accent: #f1f5f9;
+  --color-accent-foreground: #0f172a;
+  --color-destructive: #ef4444;
+  --color-destructive-foreground: #ffffff;
+  --color-border: #e2e8f0;
+  --color-input: #e2e8f0;
+  --color-ring: #1B5E20;
   --color-status-ok: #22C55E;
   --color-status-watch: #F59E0B;
   --color-status-low: #EF4444;
-  --color-bg: #F5F5F5;
-  --color-card: #FFFFFF;
+  --radius: 0.625rem;
+
+  --animate-in: animateIn 0.2s ease-out;
+  --animate-out: animateOut 0.15s ease-in;
+}
+
+@keyframes animateIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes animateOut {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(0.95); }
 }
 
 body {
   margin: 0;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background-color: var(--color-bg);
+  background-color: var(--color-background);
+  color: var(--color-foreground);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -25,25 +55,9 @@ body {
   flex-direction: column;
 }
 
-/* Form inputs */
-.input-field {
-  @apply w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary;
-}
-
-/* Modal slide-up animation */
-@keyframes slide-up {
-  from {
-    transform: translateY(100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
-
-.animate-slide-up {
-  animation: slide-up 0.2s ease-out;
+/* Safe area for bottom nav */
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 /* Hide scrollbar for filter chips */
@@ -55,7 +69,11 @@ body {
   display: none;
 }
 
-/* Safe area for bottom nav */
-.safe-bottom {
-  padding-bottom: env(safe-area-inset-bottom);
+/* Drag handle cursor */
+.drag-handle {
+  cursor: grab;
+  touch-action: none;
+}
+.drag-handle:active {
+  cursor: grabbing;
 }
