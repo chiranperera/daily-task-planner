@@ -4,8 +4,8 @@ import { GripVertical, Pencil, Trash2, Minus, Plus } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { ProductIcon } from '@/components/shared/ProductIcon';
 import type { GroceryItemWithStatus, ItemStatus } from '@/types';
-import { getProductIcon, getCategoryColor } from '@/lib/product-icons';
 import { cn } from '@/lib/utils';
 
 interface InventoryCardProps {
@@ -53,9 +53,7 @@ export function InventoryCard({ item, onEdit, onDelete, onQtyChange }: Inventory
             </button>
 
             {/* Product Icon */}
-            <div className={cn('w-9 h-9 rounded-lg flex items-center justify-center text-lg flex-shrink-0 mt-0.5', getCategoryColor(item.category))}>
-              {getProductIcon(item.name, item.category)}
-            </div>
+            <ProductIcon category={item.category} className="mt-0.5" />
 
             {/* Item Info */}
             <div className="flex-1 min-w-0">

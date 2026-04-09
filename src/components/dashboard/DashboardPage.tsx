@@ -4,7 +4,7 @@ import { Package, AlertTriangle, Eye, ShoppingCart, CheckCircle } from 'lucide-r
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useInventoryContext } from '@/context/InventoryContext';
-import { getProductIcon } from '@/lib/product-icons';
+import { ProductIcon } from '@/components/shared/ProductIcon';
 import type { ItemStatus } from '@/types';
 import { cn } from '@/lib/utils';
 
@@ -56,23 +56,12 @@ export function DashboardPage() {
   return (
     <div className="px-4 py-5 space-y-5">
       <h2 className="text-lg font-bold text-foreground">Overview</h2>
-
-      {/* Summary Cards */}
       <div className="grid grid-cols-2 gap-3">
         {cards.map(({ key, value, icon: Icon }) => {
           const cfg = filterConfig[key];
           const isActive = activeFilter === key;
           return (
-            <Card
-              key={key}
-              className={cn(
-                'cursor-pointer transition-all border-l-4 hover:shadow-md',
-                cfg.borderColor,
-                isActive && cfg.activeColor,
-                key === 'ok' && 'col-span-2'
-              )}
-              onClick={() => toggleFilter(key)}
-            >
+            <Card key={key} className={cn('cursor-pointer transition-all border-l-4 hover:shadow-md', cfg.borderColor, isActive && cfg.activeColor, key === 'ok' && 'col-span-2')} onClick={() => toggleFilter(key)}>
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
@@ -87,7 +76,6 @@ export function DashboardPage() {
         })}
       </div>
 
-      {/* Filtered Items List */}
       {activeFilter && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
@@ -95,29 +83,20 @@ export function DashboardPage() {
               {filterConfig[activeFilter].label}
               <span className="text-muted-foreground font-normal ml-1">({filteredItems.length})</span>
             </h3>
-            <button
-              onClick={() => setActiveFilter(null)}
-              className="text-xs text-muted-foreground hover:text-foreground"
-            >
-              Clear
-            </button>
+            <button onClick={() => setActiveFilter(null)} className="text-xs text-muted-foreground hover:text-foreground">Clear</button>
           </div>
           <div className="space-y-2">
             {filteredItems.map((item) => (
               <Card key={item.id} className="hover:shadow-sm transition-shadow">
                 <CardContent className="p-3 flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center text-lg flex-shrink-0">
-                    {getProductIcon(item.name, item.category)}
-                  </div>
+                  <ProductIcon category={item.category} />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-foreground truncate">{item.name}</p>
                     <p className="text-xs text-muted-foreground">{item.category}</p>
                   </div>
                   <div className="text-right flex-shrink-0">
                     <p className="text-sm font-bold">{item.qtyOnHand} <span className="text-xs font-normal text-muted-foreground">{item.unit}</span></p>
-                    <Badge variant={statusBadgeVariant[item.status]} className="text-[10px] mt-0.5">
-                      {item.status}
-                    </Badge>
+                    <Badge variant={statusBadgeVariant[item.status]} className="text-[10px] mt-0.5">{item.status}</Badge>
                   </div>
                 </CardContent>
               </Card>
@@ -126,39 +105,28 @@ export function DashboardPage() {
         </div>
       )}
 
-      {/* Quick Access - Low Stock Alert */}
       {!activeFilter && lowStockItems.length > 0 && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold text-foreground">Needs Attention</h3>
-            <Link to="/inventory" className="text-xs font-medium text-primary hover:underline">
-              View Inventory
-            </Link>
+            <Link to="/inventory" className="text-xs font-medium text-primary hover:underline">View Inventory</Link>
           </div>
           <div className="space-y-2">
             {lowStockItems.slice(0, 6).map((item) => (
               <Card key={item.id} className="border-l-4 border-l-red-400">
                 <CardContent className="p-3 flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center text-lg flex-shrink-0">
-                    {getProductIcon(item.name, item.category)}
-                  </div>
+                  <ProductIcon category={item.category} />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-foreground truncate">{item.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {item.qtyOnHand} {item.unit} left
-                    </p>
+                    <p className="text-xs text-muted-foreground">{item.qtyOnHand} {item.unit} left</p>
                   </div>
-                  <Badge variant="danger" className="text-xs">
-                    Need {item.needToBuy}
-                  </Badge>
+                  <Badge variant="danger" className="text-xs">Need {item.needToBuy}</Badge>
                 </CardContent>
               </Card>
             ))}
           </div>
           {lowStockItems.length > 6 && (
-            <Link to="/inventory" className="block text-center text-sm text-primary font-medium py-2 hover:underline">
-              +{lowStockItems.length - 6} more items
-            </Link>
+            <Link to="/inventory" className="block text-center text-sm text-primary font-medium py-2 hover:underline">+{lowStockItems.length - 6} more items</Link>
           )}
         </div>
       )}

@@ -7,8 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
-import { getProductIcon, getCategoryColor } from '@/lib/product-icons';
-import { cn } from '@/lib/utils';
+import { ProductIcon } from '@/components/shared/ProductIcon';
 
 interface ShoppingSearchAddProps {
   inventoryItems: GroceryItemWithStatus[];
@@ -186,9 +185,7 @@ export function ShoppingSearchAdd({ inventoryItems, onAdd, onCancel }: ShoppingS
                     onClick={() => handleSelectExisting(item)}
                     className="w-full text-left flex items-center gap-2.5 p-2.5 rounded-lg border border-border hover:bg-accent transition-colors"
                   >
-                    <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center text-base flex-shrink-0', getCategoryColor(item.category))}>
-                      {getProductIcon(item.name, item.category)}
-                    </div>
+                    <ProductIcon category={item.category} />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-foreground truncate">{item.name}</p>
                       <p className="text-[11px] text-muted-foreground">
