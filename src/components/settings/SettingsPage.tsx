@@ -10,7 +10,6 @@ import {
   clearScriptUrl,
   isGoogleSheetsConnected,
   fetchAllItems,
-  syncToSheet,
 } from '@/lib/sheets';
 import { useInventoryContext } from '@/context/InventoryContext';
 
@@ -44,21 +43,6 @@ export function SettingsPage() {
     setConnected(false);
     setUrl('');
     setStatus('Disconnected from Google Sheets.');
-  };
-
-  const handleSync = async () => {
-    if (!isGoogleSheetsConnected()) return;
-    setSyncing(true);
-    setStatus('Syncing...');
-    try {
-      const rawItems = items.map(({ status: _s, needToBuy: _n, ...rest }) => rest);
-      await syncToSheet(rawItems);
-      setStatus('Synced all items to Google Sheets.');
-    } catch (err) {
-      setStatus(`Sync failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
-    } finally {
-      setSyncing(false);
-    }
   };
 
   const handleRefresh = async () => {
@@ -121,10 +105,7 @@ export function SettingsPage() {
                 <Button size="sm" variant="outline" className="gap-1" onClick={handleRefresh} disabled={syncing}>
                   <RefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} /> Refresh
                 </Button>
-                <Button size="sm" variant="outline" className="gap-1" onClick={handleSync} disabled={syncing}>
-                  <Database className="w-3.5 h-3.5" /> Push to Sheet
-                </Button>
-                <Button size="sm" variant="outline" className="gap-1 text-destructive" onClick={handleDisconnect}>
+<Button size="sm" variant="outline" className="gap-1 text-destructive" onClick={handleDisconnect}>
                   <Link2Off className="w-3.5 h-3.5" /> Disconnect
                 </Button>
               </>

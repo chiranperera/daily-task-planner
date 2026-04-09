@@ -2,23 +2,27 @@
  * Google Apps Script — Deploy this as a Web App linked to your Google Sheet.
  *
  * SETUP INSTRUCTIONS:
- * 1. Open your Google Sheet
- * 2. Go to Extensions → Apps Script
- * 3. Delete any existing code, paste this entire file
- * 4. Click "Deploy" → "New deployment"
- * 5. Select type: "Web app"
+ * 1. IMPORTANT: First, manually delete the "ID" text that may have been
+ *    written to Row 1 by a previous version of this script.
+ *    Clear any cells in Row 1 that contain "ID", "Item", "Category" etc.
+ *    that don't belong to your original sheet layout.
+ * 2. Open your Google Sheet
+ * 3. Go to Extensions → Apps Script
+ * 4. Delete any existing code, paste this entire file
+ * 5. Click "Deploy" → "Manage deployments" → edit existing → "New version"
+ *    OR "Deploy" → "New deployment" → Web app
  * 6. Set "Execute as": "Me"
  * 7. Set "Who has access": "Anyone"
  * 8. Click "Deploy" and copy the Web App URL
  * 9. Paste the URL into the Grocery Tracker app Settings page
  *
- * This script auto-detects your header row by searching for "Item" column.
- * It works with sheets that have title/summary rows above the data.
- * Computed columns (Status, Need to Buy) are skipped — the app calculates those.
+ * This script auto-detects your header row by searching for a row where
+ * "Item" appears as the FIRST column. It skips title rows, summary rows,
+ * and any injected header rows from previous script versions.
  */
 
-// Column names we read/write (order doesn't matter — matched by header name)
-const COLUMN_MAP = {
+// Expected column headers in the user's sheet → internal field names
+var COLUMN_MAP = {
   'Item': 'name',
   'Category': 'category',
   'Storage': 'storage',
@@ -27,45 +31,74 @@ const COLUMN_MAP = {
   'Min Level': 'minLevel',
   'Restock To': 'restockTo',
   'Last Updated': 'lastUpdated',
-  'Notes': 'notes',
+  'Notes': 'notes'
 };
 
-// Cache for header row info
-var _headerCache = null;
+var EXPECTED_HEADERS = ['Item', 'Category', 'Storage', 'Qty On Hand', 'Unit', 'Min Level', 'Restock To'];
 
 function findHeaders(sheet) {
-  if (_headerCache) return _headerCache;
-
-  var lastRow = Math.min(sheet.getLastRow(), 20); // only scan first 20 rows
+  var lastRow = Math.min(sheet.getLastRow(), 25);
   var lastCol = sheet.getLastColumn();
   if (lastRow < 1 || lastCol < 1) return null;
 
   var allRows = sheet.getRange(1, 1, lastRow, lastCol).getValues();
 
+  var bestMatch = null;
+  var bestScore = 0;
+
   for (var r = 0; r < allRows.length; r++) {
     var row = allRows[r];
+    var score = 0;
+    var itemCol = -1;
+
     for (var c = 0; c < row.length; c++) {
       var val = String(row[c]).trim();
-      if (val === 'Item') {
-        // Found the header row — build column index map
-        var colMap = {};
-        for (var ci = 0; ci < row.length; ci++) {
-          var header = String(row[ci]).trim();
-          if (COLUMN_MAP[header]) {
-            colMap[COLUMN_MAP[header]] = ci; // e.g. { name: 0, category: 1, ... }
-          }
+      if (val === 'Item') itemCol = c;
+      for (var h = 0; h < EXPECTED_HEADERS.length; h++) {
+        if (val === EXPECTED_HEADERS[h]) {
+          score++;
+          break;
         }
-        _headerCache = { headerRow: r + 1, colMap: colMap, totalCols: lastCol };
-        return _headerCache;
       }
     }
+
+    // Must have "Item" column and at least 5 matching headers
+    if (itemCol === -1 || score < 5) continue;
+
+    // CRITICAL: Skip rows where "ID" appears before "Item" column
+    // This catches the injected header row from old script versions
+    var hasIdBefore = false;
+    for (var ci = 0; ci < itemCol; ci++) {
+      if (String(row[ci]).trim().toUpperCase() === 'ID') {
+        hasIdBefore = true;
+        break;
+      }
+    }
+    if (hasIdBefore) continue;
+
+    // Prefer: highest score, then "Item" in earliest column
+    if (score > bestScore || (score === bestScore && bestMatch && itemCol < bestMatch.itemCol)) {
+      bestScore = score;
+      bestMatch = { rowIndex: r, itemCol: itemCol, row: row };
+    }
   }
-  return null;
+
+  if (!bestMatch) return null;
+
+  // Build column index map: internal field name → column index
+  var colMap = {};
+  for (var ci2 = 0; ci2 < bestMatch.row.length; ci2++) {
+    var header = String(bestMatch.row[ci2]).trim();
+    if (COLUMN_MAP[header]) {
+      colMap[COLUMN_MAP[header]] = ci2;
+    }
+  }
+
+  return { headerRow: bestMatch.rowIndex + 1, colMap: colMap, totalCols: lastCol };
 }
 
 function getSheet() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  // Try common sheet names
   var names = ['Inventory', 'Sheet1', 'Data'];
   var sheet = null;
   for (var i = 0; i < names.length; i++) {
@@ -76,42 +109,29 @@ function getSheet() {
   return sheet;
 }
 
-function rowToItem(row, colMap, rowIndex) {
-  var name = colMap.name !== undefined ? String(row[colMap.name] || '') : '';
-  var category = colMap.category !== undefined ? String(row[colMap.category] || '') : '';
-  var storage = colMap.storage !== undefined ? String(row[colMap.storage] || '') : '';
-  var qtyOnHand = colMap.qtyOnHand !== undefined ? Number(row[colMap.qtyOnHand]) || 0 : 0;
-  var unit = colMap.unit !== undefined ? String(row[colMap.unit] || 'pcs') : 'pcs';
-  var minLevel = colMap.minLevel !== undefined ? Number(row[colMap.minLevel]) || 0 : 0;
-  var restockTo = colMap.restockTo !== undefined ? Number(row[colMap.restockTo]) || 0 : 0;
-  var notes = colMap.notes !== undefined ? String(row[colMap.notes] || '') : '';
-
-  var lastUpdated = '';
-  if (colMap.lastUpdated !== undefined && row[colMap.lastUpdated]) {
-    try {
-      var d = new Date(row[colMap.lastUpdated]);
-      if (!isNaN(d.getTime())) {
-        lastUpdated = Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy-MM-dd');
-      }
-    } catch (e) {
-      lastUpdated = String(row[colMap.lastUpdated]);
-    }
+function formatDate(d) {
+  try {
+    if (!d) return '';
+    var date = new Date(d);
+    if (isNaN(date.getTime())) return String(d);
+    return Utilities.formatDate(date, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  } catch (e) {
+    return String(d || '');
   }
+}
 
-  // Generate a stable ID from row index (no ID column in user's sheet)
-  var id = 'row-' + rowIndex;
-
+function rowToItem(row, colMap, sheetRowNum) {
   return {
-    id: id,
-    name: name,
-    category: category,
-    storage: storage,
-    qtyOnHand: qtyOnHand,
-    unit: unit,
-    minLevel: minLevel,
-    restockTo: restockTo,
-    lastUpdated: lastUpdated,
-    notes: notes,
+    id: 'row-' + sheetRowNum,
+    name: colMap.name !== undefined ? String(row[colMap.name] || '') : '',
+    category: colMap.category !== undefined ? String(row[colMap.category] || '') : '',
+    storage: colMap.storage !== undefined ? String(row[colMap.storage] || '') : '',
+    qtyOnHand: colMap.qtyOnHand !== undefined ? (Number(row[colMap.qtyOnHand]) || 0) : 0,
+    unit: colMap.unit !== undefined ? String(row[colMap.unit] || 'pcs') : 'pcs',
+    minLevel: colMap.minLevel !== undefined ? (Number(row[colMap.minLevel]) || 0) : 0,
+    restockTo: colMap.restockTo !== undefined ? (Number(row[colMap.restockTo]) || 0) : 0,
+    lastUpdated: colMap.lastUpdated !== undefined ? formatDate(row[colMap.lastUpdated]) : '',
+    notes: colMap.notes !== undefined ? String(row[colMap.notes] || '') : ''
   };
 }
 
@@ -124,59 +144,35 @@ function getAllItems() {
   var lastRow = sheet.getLastRow();
   if (lastRow < dataStartRow) return [];
 
-  var numRows = lastRow - dataStartRow + 1;
-  var data = sheet.getRange(dataStartRow, 1, numRows, info.totalCols).getValues();
-
+  var data = sheet.getRange(dataStartRow, 1, lastRow - dataStartRow + 1, info.totalCols).getValues();
   var items = [];
+
   for (var i = 0; i < data.length; i++) {
     var row = data[i];
-    // Skip empty rows (check Item column)
-    var itemName = info.colMap.name !== undefined ? String(row[info.colMap.name] || '').trim() : '';
+    var itemName = colMap_get(info.colMap, 'name', row);
     if (!itemName) continue;
     items.push(rowToItem(row, info.colMap, dataStartRow + i));
   }
   return items;
 }
 
-function findItemRow(sheet, info, id) {
-  // id format: "row-N" where N is the sheet row number
-  var match = String(id).match(/^row-(\d+)$/);
-  if (match) {
-    var rowNum = parseInt(match[1]);
-    if (rowNum >= info.headerRow + 1 && rowNum <= sheet.getLastRow()) {
-      return rowNum;
-    }
-  }
-
-  // Fallback: search by item name (for items added by the app)
-  var dataStartRow = info.headerRow + 1;
-  var lastRow = sheet.getLastRow();
-  if (lastRow < dataStartRow) return -1;
-
-  var nameCol = info.colMap.name;
-  if (nameCol === undefined) return -1;
-
-  var names = sheet.getRange(dataStartRow, nameCol + 1, lastRow - dataStartRow + 1, 1).getValues().flat();
-  // Try to match by a stored name in the ID (for app-created items)
-  for (var i = 0; i < names.length; i++) {
-    if (String(id) === 'row-' + (dataStartRow + i)) return dataStartRow + i;
-  }
-  return -1;
+function colMap_get(colMap, field, row) {
+  if (colMap[field] === undefined) return '';
+  return String(row[colMap[field]] || '').trim();
 }
 
 function writeItemToRow(sheet, info, rowNum, item) {
   var colMap = info.colMap;
-  // Read current row to preserve any columns we don't manage
   var currentRow = sheet.getRange(rowNum, 1, 1, info.totalCols).getValues()[0];
 
-  if (colMap.name !== undefined) currentRow[colMap.name] = item.name;
-  if (colMap.category !== undefined) currentRow[colMap.category] = item.category;
-  if (colMap.storage !== undefined) currentRow[colMap.storage] = item.storage;
-  if (colMap.qtyOnHand !== undefined) currentRow[colMap.qtyOnHand] = item.qtyOnHand;
-  if (colMap.unit !== undefined) currentRow[colMap.unit] = item.unit;
-  if (colMap.minLevel !== undefined) currentRow[colMap.minLevel] = item.minLevel;
-  if (colMap.restockTo !== undefined) currentRow[colMap.restockTo] = item.restockTo;
-  if (colMap.lastUpdated !== undefined) currentRow[colMap.lastUpdated] = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  if (colMap.name !== undefined) currentRow[colMap.name] = item.name || '';
+  if (colMap.category !== undefined) currentRow[colMap.category] = item.category || '';
+  if (colMap.storage !== undefined) currentRow[colMap.storage] = item.storage || '';
+  if (colMap.qtyOnHand !== undefined) currentRow[colMap.qtyOnHand] = Number(item.qtyOnHand) || 0;
+  if (colMap.unit !== undefined) currentRow[colMap.unit] = item.unit || 'pcs';
+  if (colMap.minLevel !== undefined) currentRow[colMap.minLevel] = Number(item.minLevel) || 0;
+  if (colMap.restockTo !== undefined) currentRow[colMap.restockTo] = Number(item.restockTo) || 0;
+  if (colMap.lastUpdated !== undefined) currentRow[colMap.lastUpdated] = formatDate(new Date());
   if (colMap.notes !== undefined) currentRow[colMap.notes] = item.notes || '';
 
   sheet.getRange(rowNum, 1, 1, info.totalCols).setValues([currentRow]);
@@ -187,17 +183,21 @@ function addItem(item) {
   var info = findHeaders(sheet);
   if (!info) return null;
 
-  var newRow = new Array(info.totalCols).fill('');
-  var colMap = info.colMap;
+  // Build a new row with values in the correct columns
+  var newRow = [];
+  for (var c = 0; c < info.totalCols; c++) {
+    newRow.push('');
+  }
 
-  if (colMap.name !== undefined) newRow[colMap.name] = item.name;
-  if (colMap.category !== undefined) newRow[colMap.category] = item.category;
-  if (colMap.storage !== undefined) newRow[colMap.storage] = item.storage;
-  if (colMap.qtyOnHand !== undefined) newRow[colMap.qtyOnHand] = item.qtyOnHand;
-  if (colMap.unit !== undefined) newRow[colMap.unit] = item.unit;
-  if (colMap.minLevel !== undefined) newRow[colMap.minLevel] = item.minLevel;
-  if (colMap.restockTo !== undefined) newRow[colMap.restockTo] = item.restockTo;
-  if (colMap.lastUpdated !== undefined) newRow[colMap.lastUpdated] = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  var colMap = info.colMap;
+  if (colMap.name !== undefined) newRow[colMap.name] = item.name || '';
+  if (colMap.category !== undefined) newRow[colMap.category] = item.category || '';
+  if (colMap.storage !== undefined) newRow[colMap.storage] = item.storage || '';
+  if (colMap.qtyOnHand !== undefined) newRow[colMap.qtyOnHand] = Number(item.qtyOnHand) || 0;
+  if (colMap.unit !== undefined) newRow[colMap.unit] = item.unit || 'pcs';
+  if (colMap.minLevel !== undefined) newRow[colMap.minLevel] = Number(item.minLevel) || 0;
+  if (colMap.restockTo !== undefined) newRow[colMap.restockTo] = Number(item.restockTo) || 0;
+  if (colMap.lastUpdated !== undefined) newRow[colMap.lastUpdated] = formatDate(new Date());
   if (colMap.notes !== undefined) newRow[colMap.notes] = item.notes || '';
 
   sheet.appendRow(newRow);
@@ -205,16 +205,41 @@ function addItem(item) {
 
   return {
     id: 'row-' + lastRow,
-    name: item.name,
-    category: item.category,
-    storage: item.storage,
-    qtyOnHand: item.qtyOnHand,
+    name: item.name || '',
+    category: item.category || '',
+    storage: item.storage || '',
+    qtyOnHand: Number(item.qtyOnHand) || 0,
     unit: item.unit || 'pcs',
-    minLevel: item.minLevel,
-    restockTo: item.restockTo,
-    lastUpdated: Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd'),
-    notes: item.notes || '',
+    minLevel: Number(item.minLevel) || 0,
+    restockTo: Number(item.restockTo) || 0,
+    lastUpdated: formatDate(new Date()),
+    notes: item.notes || ''
   };
+}
+
+function findItemRow(sheet, info, id) {
+  var dataStartRow = info.headerRow + 1;
+  var lastRow = sheet.getLastRow();
+  if (lastRow < dataStartRow) return -1;
+
+  // Try row-N format first
+  var match = String(id).match(/^row-(\d+)$/);
+  if (match) {
+    var rowNum = parseInt(match[1]);
+    if (rowNum >= dataStartRow && rowNum <= lastRow) return rowNum;
+  }
+
+  // Fallback: search by item name
+  if (info.colMap.name === undefined) return -1;
+  var nameColIdx = info.colMap.name + 1; // 1-based for getRange
+  var names = sheet.getRange(dataStartRow, nameColIdx, lastRow - dataStartRow + 1, 1).getValues().flat();
+
+  for (var i = 0; i < names.length; i++) {
+    if (String(names[i]).trim().toLowerCase() === String(id).trim().toLowerCase()) {
+      return dataStartRow + i;
+    }
+  }
+  return -1;
 }
 
 function updateItem(item) {
@@ -223,8 +248,23 @@ function updateItem(item) {
   if (!info) return;
 
   var rowNum = findItemRow(sheet, info, item.id);
-  if (rowNum === -1) return;
-
+  if (rowNum === -1) {
+    // Try finding by name as fallback
+    if (info.colMap.name !== undefined && item.name) {
+      var dataStartRow = info.headerRow + 1;
+      var lastRow = sheet.getLastRow();
+      if (lastRow >= dataStartRow) {
+        var names = sheet.getRange(dataStartRow, info.colMap.name + 1, lastRow - dataStartRow + 1, 1).getValues().flat();
+        for (var i = 0; i < names.length; i++) {
+          if (String(names[i]).trim() === item.name.trim()) {
+            rowNum = dataStartRow + i;
+            break;
+          }
+        }
+      }
+    }
+    if (rowNum === -1) return;
+  }
   writeItemToRow(sheet, info, rowNum, item);
 }
 
@@ -235,13 +275,11 @@ function deleteItem(id) {
 
   var rowNum = findItemRow(sheet, info, id);
   if (rowNum === -1) return;
-
   sheet.deleteRow(rowNum);
 }
 
 function doPost(e) {
   try {
-    _headerCache = null; // clear cache per request
     var body = JSON.parse(e.postData.contents);
     var result;
 
@@ -267,14 +305,13 @@ function doPost(e) {
     return ContentService.createTextOutput(JSON.stringify(result))
       .setMimeType(ContentService.MimeType.JSON);
   } catch (err) {
-    return ContentService.createTextOutput(JSON.stringify({ error: err.message }))
+    return ContentService.createTextOutput(JSON.stringify({ error: err.message, stack: err.stack }))
       .setMimeType(ContentService.MimeType.JSON);
   }
 }
 
 function doGet() {
   try {
-    _headerCache = null;
     var items = getAllItems();
     return ContentService.createTextOutput(JSON.stringify({ items: items, count: items.length }))
       .setMimeType(ContentService.MimeType.JSON);

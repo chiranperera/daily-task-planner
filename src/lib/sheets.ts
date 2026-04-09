@@ -18,6 +18,21 @@ export function isGoogleSheetsConnected(): boolean {
   return !!getScriptUrl();
 }
 
+// Strip fields that shouldn't be sent to the sheet
+function toSheetItem(item: Record<string, unknown>): Record<string, unknown> {
+  return {
+    name: item.name,
+    category: item.category,
+    storage: item.storage,
+    qtyOnHand: item.qtyOnHand,
+    unit: item.unit,
+    minLevel: item.minLevel,
+    restockTo: item.restockTo,
+    lastUpdated: item.lastUpdated,
+    notes: item.notes || '',
+  };
+}
+
 async function callSheet(action: string, payload?: Record<string, unknown>): Promise<unknown> {
   const url = getScriptUrl();
   if (!url) throw new Error('Google Sheets not connected');
@@ -38,18 +53,16 @@ export async function fetchAllItems(): Promise<GroceryItem[]> {
 }
 
 export async function addItemToSheet(item: Omit<GroceryItem, 'id'>): Promise<GroceryItem> {
-  const data = await callSheet('add', { item }) as { item: GroceryItem };
+  // Only send sheet-relevant fields (no id, no status, no needToBuy)
+  const data = await callSheet('add', { item: toSheetItem(item) }) as { item: GroceryItem };
   return data.item;
 }
 
 export async function updateItemInSheet(item: GroceryItem): Promise<void> {
-  await callSheet('update', { item });
+  // Send id for row lookup + clean sheet fields
+  await callSheet('update', { item: { id: item.id, ...toSheetItem(item) } });
 }
 
 export async function deleteItemFromSheet(id: string): Promise<void> {
   await callSheet('delete', { id });
-}
-
-export async function syncToSheet(items: GroceryItem[]): Promise<void> {
-  await callSheet('syncAll', { items });
 }
