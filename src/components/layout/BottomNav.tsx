@@ -11,7 +11,7 @@ const tabs = [
 ];
 
 export function BottomNav() {
-  const { shoppingList } = useInventoryContext();
+  const { shopping } = useInventoryContext();
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-border z-30 safe-bottom">
@@ -30,9 +30,9 @@ export function BottomNav() {
           >
             <tab.icon className="w-5 h-5" />
             <span className="text-[10px] font-medium">{tab.label}</span>
-            {tab.to === '/shopping' && shoppingList.length > 0 && (
+            {tab.to === '/shopping' && shopping.uncheckedItems.length > 0 && (
               <span className="absolute -top-0.5 right-1 bg-destructive text-white text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
-                {shoppingList.length}
+                {shopping.uncheckedItems.length}
               </span>
             )}
           </NavLink>

@@ -25,7 +25,8 @@ const statusBadgeVariant: Record<ItemStatus, 'danger' | 'warning' | 'success'> =
 };
 
 export function DashboardPage() {
-  const { items, stats, shoppingList } = useInventoryContext();
+  const { items, stats } = useInventoryContext();
+  const lowStockItems = items.filter((i) => i.status === 'LOW STOCK' && i.needToBuy > 0);
   const [activeFilter, setActiveFilter] = useState<DashboardFilter | null>(null);
 
   const toggleFilter = (filter: DashboardFilter) => {
@@ -126,16 +127,16 @@ export function DashboardPage() {
       )}
 
       {/* Quick Access - Low Stock Alert */}
-      {!activeFilter && shoppingList.length > 0 && (
+      {!activeFilter && lowStockItems.length > 0 && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold text-foreground">Needs Attention</h3>
-            <Link to="/shopping" className="text-xs font-medium text-primary hover:underline">
-              View Shopping List
+            <Link to="/inventory" className="text-xs font-medium text-primary hover:underline">
+              View Inventory
             </Link>
           </div>
           <div className="space-y-2">
-            {shoppingList.slice(0, 6).map((item) => (
+            {lowStockItems.slice(0, 6).map((item) => (
               <Card key={item.id} className="border-l-4 border-l-red-400">
                 <CardContent className="p-3 flex items-center gap-3">
                   <div className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center text-lg flex-shrink-0">
@@ -154,9 +155,9 @@ export function DashboardPage() {
               </Card>
             ))}
           </div>
-          {shoppingList.length > 6 && (
-            <Link to="/shopping" className="block text-center text-sm text-primary font-medium py-2 hover:underline">
-              +{shoppingList.length - 6} more items
+          {lowStockItems.length > 6 && (
+            <Link to="/inventory" className="block text-center text-sm text-primary font-medium py-2 hover:underline">
+              +{lowStockItems.length - 6} more items
             </Link>
           )}
         </div>

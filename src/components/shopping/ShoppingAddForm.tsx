@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { GroceryItem } from '@/types';
+import type { ShoppingListItem } from '@/types';
 import { CATEGORIES, STORAGE_LOCATIONS, UNITS } from '@/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,41 +9,34 @@ import { findDuplicates } from '@/lib/duplicates';
 import { useInventoryContext } from '@/context/InventoryContext';
 
 interface ShoppingAddFormProps {
-  onSave: (data: Omit<GroceryItem, 'id' | 'lastUpdated'>) => void;
+  onSave: (data: Omit<ShoppingListItem, 'id' | 'checked' | 'createdAt'>) => void;
   onCancel: () => void;
 }
 
 export function ShoppingAddForm({ onSave, onCancel }: ShoppingAddFormProps) {
-  const { items } = useInventoryContext();
+  const { items, shopping } = useInventoryContext();
   const [name, setName] = useState('');
   const [category, setCategory] = useState(CATEGORIES[0]);
   const [storage, setStorage] = useState(STORAGE_LOCATIONS[0]);
-  const [qty, setQty] = useState(0);
+  const [qty, setQty] = useState(1);
   const [unit, setUnit] = useState(UNITS[0]);
-  const [minLevel, setMinLevel] = useState(1);
-  const [restockTo, setRestockTo] = useState(2);
   const [notes, setNotes] = useState('');
   const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
 
   const handleNameChange = (val: string) => {
     setName(val);
-    const existing = items.map((i) => i.name);
-    const dup = findDuplicates(val, existing);
+    // Check both inventory and shopping list for duplicates
+    const allNames = [
+      ...items.map((i) => i.name),
+      ...shopping.items.map((i) => i.name),
+    ];
+    const dup = findDuplicates(val, allNames);
     setDuplicateWarning(dup ? `Similar item: "${dup}"` : null);
   };
 
   const handleSave = () => {
     if (!name.trim()) return;
-    onSave({
-      name: name.trim(),
-      category,
-      storage,
-      qtyOnHand: qty,
-      unit,
-      minLevel,
-      restockTo,
-      notes: notes.trim(),
-    });
+    onSave({ name: name.trim(), category, storage, qty, unit, notes: notes.trim() });
   };
 
   return (
@@ -51,11 +44,7 @@ export function ShoppingAddForm({ onSave, onCancel }: ShoppingAddFormProps) {
       <CardContent className="p-4 space-y-3">
         <h3 className="text-sm font-semibold text-foreground">Add to Shopping List</h3>
 
-        <Input
-          placeholder="Item name *"
-          value={name}
-          onChange={(e) => handleNameChange(e.target.value)}
-        />
+        <Input placeholder="Item name *" value={name} onChange={(e) => handleNameChange(e.target.value)} />
         {duplicateWarning && (
           <p className="text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded">{duplicateWarning}</p>
         )}
@@ -89,44 +78,23 @@ export function ShoppingAddForm({ onSave, onCancel }: ShoppingAddFormProps) {
             />
           </div>
           <div>
-            <label className="text-[11px] text-muted-foreground">Min</label>
-            <Input
-              type="number"
-              value={minLevel}
-              onChange={(e) => setMinLevel(parseFloat(e.target.value) || 0)}
-              step="0.5"
-              min="0"
-              inputMode="decimal"
-              className="h-8 text-sm mt-0.5"
-            />
+            <label className="text-[11px] text-muted-foreground">Unit</label>
+            <Select value={unit} onValueChange={(v) => setUnit(v as typeof unit)}>
+              <SelectTrigger className="h-8 text-xs mt-0.5"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {UNITS.map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}
+              </SelectContent>
+            </Select>
           </div>
           <div>
-            <label className="text-[11px] text-muted-foreground">Restock</label>
+            <label className="text-[11px] text-muted-foreground">Notes</label>
             <Input
-              type="number"
-              value={restockTo}
-              onChange={(e) => setRestockTo(parseFloat(e.target.value) || 0)}
-              step="0.5"
-              min="0"
-              inputMode="decimal"
+              placeholder="Optional"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
               className="h-8 text-sm mt-0.5"
             />
           </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-2">
-          <Select value={unit} onValueChange={(v) => setUnit(v as typeof unit)}>
-            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {UNITS.map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Input
-            placeholder="Notes"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            className="h-8 text-sm"
-          />
         </div>
 
         <div className="flex gap-2">

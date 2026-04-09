@@ -58,3 +58,15 @@ export const STORAGE_LOCATIONS: StorageLocation[] = ['Storage', 'Pantry'];
 export const UNITS: Unit[] = ['pcs', 'bottles', 'kg', 'packs'];
 
 export const STATUSES: ItemStatus[] = ['LOW STOCK', 'WATCH', 'OK'];
+
+export interface ShoppingListItem {
+  id: string;
+  name: string;
+  category: Category;
+  storage: StorageLocation;
+  qty: number;
+  unit: Unit;
+  notes: string;
+  checked: boolean;
+  createdAt: string;
+}
