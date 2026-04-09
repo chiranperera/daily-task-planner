@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Check, Minus, Plus, Pencil, Trash2 } from 'lucide-react';
 import type { ShoppingListItem } from '@/types';
 import { CATEGORIES, STORAGE_LOCATIONS, UNITS } from '@/types';
@@ -40,33 +40,63 @@ export function ShoppingCard({
     notes: item.notes,
   });
 
+  // Sync edit form when entering edit mode or when item changes
+  useEffect(() => {
+    if (isEditing) {
+      setEditForm({
+        name: item.name,
+        category: item.category,
+        storage: item.storage,
+        qty: item.qty,
+        unit: item.unit,
+        notes: item.notes,
+      });
+    }
+  }, [isEditing, item.name, item.category, item.storage, item.qty, item.unit, item.notes]);
+
   if (isEditing) {
     return (
       <Card className="ring-2 ring-primary/30">
-        <CardContent className="p-3 space-y-3">
-          <Input
-            value={editForm.name}
-            onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-            placeholder="Item name"
-            className="h-8 text-sm"
-          />
-          <div className="grid grid-cols-2 gap-2">
-            <Select value={editForm.category} onValueChange={(v) => setEditForm({ ...editForm, category: v as typeof editForm.category })}>
-              <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Select value={editForm.storage} onValueChange={(v) => setEditForm({ ...editForm, storage: v as typeof editForm.storage })}>
-              <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {STORAGE_LOCATIONS.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-              </SelectContent>
-            </Select>
+        <CardContent className="p-4 space-y-3">
+          <h4 className="text-xs font-semibold text-muted-foreground uppercase">Edit Item</h4>
+
+          {/* Name */}
+          <div>
+            <label className="text-[11px] text-muted-foreground">Product Name</label>
+            <Input
+              value={editForm.name}
+              onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+              placeholder="Item name"
+              className="mt-0.5"
+            />
           </div>
+
+          {/* Category + Storage */}
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="text-[11px] text-muted-foreground">Category</label>
+              <Select value={editForm.category} onValueChange={(v) => setEditForm({ ...editForm, category: v as typeof editForm.category })}>
+                <SelectTrigger className="h-9 text-xs mt-0.5"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-[11px] text-muted-foreground">Storage</label>
+              <Select value={editForm.storage} onValueChange={(v) => setEditForm({ ...editForm, storage: v as typeof editForm.storage })}>
+                <SelectTrigger className="h-9 text-xs mt-0.5"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {STORAGE_LOCATIONS.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Qty + Unit */}
           <div className="grid grid-cols-3 gap-2">
             <div>
-              <label className="text-[11px] text-muted-foreground">Qty</label>
+              <label className="text-[11px] text-muted-foreground">Quantity</label>
               <Input
                 type="number"
                 value={editForm.qty}
@@ -74,13 +104,13 @@ export function ShoppingCard({
                 step="0.5"
                 min="0"
                 inputMode="decimal"
-                className="h-8 text-sm mt-0.5"
+                className="h-9 text-sm mt-0.5"
               />
             </div>
             <div>
               <label className="text-[11px] text-muted-foreground">Unit</label>
               <Select value={editForm.unit} onValueChange={(v) => setEditForm({ ...editForm, unit: v as typeof editForm.unit })}>
-                <SelectTrigger className="h-8 text-xs mt-0.5"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-9 text-xs mt-0.5"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {UNITS.map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}
                 </SelectContent>
@@ -91,25 +121,33 @@ export function ShoppingCard({
               <Input
                 value={editForm.notes}
                 onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
-                className="h-8 text-sm mt-0.5"
+                placeholder="Optional"
+                className="h-9 text-sm mt-0.5"
               />
             </div>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" className="flex-1 h-7" onClick={onCancelEdit}>Cancel</Button>
+
+          {/* Save / Cancel */}
+          <div className="flex gap-2 pt-1">
+            <Button variant="outline" size="sm" className="flex-1" onClick={onCancelEdit}>
+              Cancel
+            </Button>
             <Button
               size="sm"
-              className="flex-1 h-7"
-              onClick={() => onSaveEdit({
-                name: editForm.name.trim(),
-                category: editForm.category,
-                storage: editForm.storage,
-                qty: editForm.qty,
-                unit: editForm.unit,
-                notes: editForm.notes.trim(),
-              })}
+              className="flex-1"
+              onClick={() =>
+                onSaveEdit({
+                  name: editForm.name.trim(),
+                  category: editForm.category,
+                  storage: editForm.storage,
+                  qty: editForm.qty,
+                  unit: editForm.unit,
+                  notes: editForm.notes.trim(),
+                })
+              }
+              disabled={!editForm.name.trim()}
             >
-              Save
+              Save Changes
             </Button>
           </div>
         </CardContent>
@@ -117,6 +155,7 @@ export function ShoppingCard({
     );
   }
 
+  // Normal view
   return (
     <Card className={cn('transition-all', item.checked && 'opacity-60')}>
       <CardContent className="p-3">
@@ -144,6 +183,8 @@ export function ShoppingCard({
             </p>
             <div className="flex items-center gap-2 mt-0.5">
               <span className="text-[11px] text-muted-foreground">{item.category}</span>
+              <span className="text-[11px] text-muted-foreground/50">·</span>
+              <span className="text-[11px] text-muted-foreground">{item.storage}</span>
               {item.notes && (
                 <>
                   <span className="text-[11px] text-muted-foreground/50">·</span>

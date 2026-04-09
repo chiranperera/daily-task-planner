@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, ShoppingCart, Trash2 } from 'lucide-react';
+import { Plus, ShoppingCart, Trash2, Check } from 'lucide-react';
 import { useInventoryContext } from '@/context/InventoryContext';
 import { ShoppingCard } from './ShoppingCard';
 import { ShoppingSearchAdd } from './ShoppingSearchAdd';
@@ -12,16 +12,15 @@ export function ShoppingListPage() {
   const { uncheckedItems, checkedItems, grouped, totalQty, dispatch } = shopping;
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [lastAdded, setLastAdded] = useState<string | null>(null);
 
-  // When user checks an item = "bought" → add/update inventory
   const handleCheck = (id: string) => {
-    dispatch({ type: 'CHECK_ITEM', id });
-
     const item = uncheckedItems.find((i) => i.id === id);
     if (!item) return;
 
+    dispatch({ type: 'CHECK_ITEM', id });
+
     if (item.inventoryItemId) {
-      // Existing inventory item → update its qty (restock)
       const existingItem = inventoryItems.find((i) => i.id === item.inventoryItemId);
       if (existingItem) {
         const newQty = existingItem.qtyOnHand + item.qty;
@@ -30,13 +29,11 @@ export function ShoppingListPage() {
           id: existingItem.id,
           updates: { qtyOnHand: newQty },
         });
-        // Sync to Google Sheet
         if (isGoogleSheetsConnected()) {
           updateItemInSheet({ ...existingItem, qtyOnHand: newQty, lastUpdated: new Date().toISOString().split('T')[0] }).catch(console.error);
         }
       }
     } else {
-      // New product → add to inventory
       const newItem: Omit<GroceryItem, 'id' | 'lastUpdated'> = {
         name: item.name,
         category: item.category,
@@ -48,7 +45,6 @@ export function ShoppingListPage() {
         notes: item.notes,
       };
       inventoryDispatch({ type: 'ADD_ITEM', item: newItem });
-      // Sync to Google Sheet
       if (isGoogleSheetsConnected()) {
         addItemToSheet({ ...newItem, lastUpdated: new Date().toISOString().split('T')[0] }).catch(console.error);
       }
@@ -65,7 +61,9 @@ export function ShoppingListPage() {
 
   const handleAddItem = (item: Omit<ShoppingListItem, 'id' | 'checked' | 'createdAt'>) => {
     dispatch({ type: 'ADD_ITEM', item });
-    setShowAddForm(false);
+    // Show confirmation briefly, keep form open so user can add more
+    setLastAdded(item.name);
+    setTimeout(() => setLastAdded(null), 2000);
   };
 
   return (
@@ -78,11 +76,30 @@ export function ShoppingListPage() {
             {uncheckedItems.length} items · {totalQty} total units
           </p>
         </div>
-        <Button size="sm" className="h-8 gap-1" onClick={() => setShowAddForm(true)}>
-          <Plus className="w-3.5 h-3.5" />
-          <span className="text-xs">Add</span>
+        <Button
+          size="sm"
+          className="h-8 gap-1"
+          variant={showAddForm ? 'outline' : 'default'}
+          onClick={() => setShowAddForm(!showAddForm)}
+        >
+          {showAddForm ? (
+            <span className="text-xs">Done</span>
+          ) : (
+            <>
+              <Plus className="w-3.5 h-3.5" />
+              <span className="text-xs">Add</span>
+            </>
+          )}
         </Button>
       </div>
+
+      {/* Added confirmation */}
+      {lastAdded && (
+        <div className="mb-3 flex items-center gap-2 bg-emerald-50 text-emerald-700 text-xs font-medium px-3 py-2 rounded-lg">
+          <Check className="w-3.5 h-3.5" />
+          Added "{lastAdded}" to shopping list
+        </div>
+      )}
 
       {/* Search-first Add Form */}
       {showAddForm && (
@@ -95,7 +112,7 @@ export function ShoppingListPage() {
         </div>
       )}
 
-      {/* Unchecked Items */}
+      {/* Unchecked Items — always visible, even when add form is open */}
       {uncheckedItems.length === 0 && !showAddForm ? (
         <div className="text-center py-12 text-muted-foreground">
           <ShoppingCart className="w-12 h-12 mx-auto mb-2 opacity-30" />
@@ -105,7 +122,7 @@ export function ShoppingListPage() {
             <Plus className="w-3.5 h-3.5" /> Add item
           </Button>
         </div>
-      ) : (
+      ) : uncheckedItems.length > 0 ? (
         <div className="space-y-5">
           {grouped.map(({ category, items }) => (
             <div key={category}>
@@ -133,7 +150,7 @@ export function ShoppingListPage() {
             </div>
           ))}
         </div>
-      )}
+      ) : null}
 
       {/* Bought Items */}
       {checkedItems.length > 0 && (
