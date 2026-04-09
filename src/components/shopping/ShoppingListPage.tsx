@@ -2,23 +2,42 @@ import { useState } from 'react';
 import { Plus, ShoppingCart, Trash2 } from 'lucide-react';
 import { useInventoryContext } from '@/context/InventoryContext';
 import { ShoppingCard } from './ShoppingCard';
-import { ShoppingAddForm } from './ShoppingAddForm';
+import { ShoppingSearchAdd } from './ShoppingSearchAdd';
 import { Button } from '@/components/ui/button';
+import type { GroceryItem, ShoppingListItem } from '@/types';
+import { isGoogleSheetsConnected, updateItemInSheet, addItemToSheet } from '@/lib/sheets';
 
 export function ShoppingListPage() {
-  const { shopping, addItem: addToInventory } = useInventoryContext();
+  const { items: inventoryItems, dispatch: inventoryDispatch, shopping } = useInventoryContext();
   const { uncheckedItems, checkedItems, grouped, totalQty, dispatch } = shopping;
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
+  // When user checks an item = "bought" → add/update inventory
   const handleCheck = (id: string) => {
-    // Mark as checked
     dispatch({ type: 'CHECK_ITEM', id });
 
-    // Find the item and add/update in inventory
-    const item = [...uncheckedItems, ...checkedItems].find((i) => i.id === id);
-    if (item) {
-      addToInventory({
+    const item = uncheckedItems.find((i) => i.id === id);
+    if (!item) return;
+
+    if (item.inventoryItemId) {
+      // Existing inventory item → update its qty (restock)
+      const existingItem = inventoryItems.find((i) => i.id === item.inventoryItemId);
+      if (existingItem) {
+        const newQty = existingItem.qtyOnHand + item.qty;
+        inventoryDispatch({
+          type: 'EDIT_ITEM',
+          id: existingItem.id,
+          updates: { qtyOnHand: newQty },
+        });
+        // Sync to Google Sheet
+        if (isGoogleSheetsConnected()) {
+          updateItemInSheet({ ...existingItem, qtyOnHand: newQty, lastUpdated: new Date().toISOString().split('T')[0] }).catch(console.error);
+        }
+      }
+    } else {
+      // New product → add to inventory
+      const newItem: Omit<GroceryItem, 'id' | 'lastUpdated'> = {
         name: item.name,
         category: item.category,
         storage: item.storage,
@@ -27,7 +46,12 @@ export function ShoppingListPage() {
         minLevel: 0,
         restockTo: item.qty,
         notes: item.notes,
-      });
+      };
+      inventoryDispatch({ type: 'ADD_ITEM', item: newItem });
+      // Sync to Google Sheet
+      if (isGoogleSheetsConnected()) {
+        addItemToSheet({ ...newItem, lastUpdated: new Date().toISOString().split('T')[0] }).catch(console.error);
+      }
     }
   };
 
@@ -37,6 +61,11 @@ export function ShoppingListPage() {
 
   const handleClearChecked = () => {
     dispatch({ type: 'REMOVE_CHECKED' });
+  };
+
+  const handleAddItem = (item: Omit<ShoppingListItem, 'id' | 'checked' | 'createdAt'>) => {
+    dispatch({ type: 'ADD_ITEM', item });
+    setShowAddForm(false);
   };
 
   return (
@@ -55,25 +84,23 @@ export function ShoppingListPage() {
         </Button>
       </div>
 
-      {/* Add Form */}
+      {/* Search-first Add Form */}
       {showAddForm && (
         <div className="mb-4">
-          <ShoppingAddForm
-            onSave={(item) => {
-              dispatch({ type: 'ADD_ITEM', item });
-              setShowAddForm(false);
-            }}
+          <ShoppingSearchAdd
+            inventoryItems={inventoryItems}
+            onAdd={handleAddItem}
             onCancel={() => setShowAddForm(false)}
           />
         </div>
       )}
 
-      {/* Unchecked Items - grouped by category */}
+      {/* Unchecked Items */}
       {uncheckedItems.length === 0 && !showAddForm ? (
         <div className="text-center py-12 text-muted-foreground">
           <ShoppingCart className="w-12 h-12 mx-auto mb-2 opacity-30" />
           <p className="text-base font-medium">Shopping list is empty</p>
-          <p className="text-sm mt-1">Add items you need to buy</p>
+          <p className="text-sm mt-1">Search and add items you need to buy</p>
           <Button size="sm" className="mt-4 gap-1" onClick={() => setShowAddForm(true)}>
             <Plus className="w-3.5 h-3.5" /> Add item
           </Button>
@@ -108,7 +135,7 @@ export function ShoppingListPage() {
         </div>
       )}
 
-      {/* Checked / Bought Items */}
+      {/* Bought Items */}
       {checkedItems.length > 0 && (
         <div className="mt-6">
           <div className="flex items-center justify-between mb-2">

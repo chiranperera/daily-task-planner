@@ -69,4 +69,6 @@ export interface ShoppingListItem {
   notes: string;
   checked: boolean;
   createdAt: string;
+  inventoryItemId?: string;  // if linked to an existing inventory item
+  isNewProduct?: boolean;     // true if this is a brand new product
 }

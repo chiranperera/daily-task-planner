@@ -1,6 +1,5 @@
 import { useReducer, useEffect, useMemo } from 'react';
-import type { ShoppingListItem, Category } from '@/types';
-import { CATEGORIES } from '@/types';
+import type { ShoppingListItem } from '@/types';
 
 const STORAGE_KEY = 'grocery-shopping-list';
 
@@ -81,18 +80,18 @@ export function useShoppingList() {
   const uncheckedItems = useMemo(() => items.filter((i) => !i.checked), [items]);
   const checkedItems = useMemo(() => items.filter((i) => i.checked), [items]);
 
+  // Group by category — include ALL categories that have items, not just predefined ones
   const grouped = useMemo(() => {
     const groups: Record<string, ShoppingListItem[]> = {};
     for (const item of uncheckedItems) {
-      if (!groups[item.category]) groups[item.category] = [];
-      groups[item.category].push(item);
+      const cat = item.category || 'Other';
+      if (!groups[cat]) groups[cat] = [];
+      groups[cat].push(item);
     }
-    // Return in category order
-    const ordered: { category: Category; items: ShoppingListItem[] }[] = [];
-    for (const cat of CATEGORIES) {
-      if (groups[cat]?.length) ordered.push({ category: cat, items: groups[cat] });
-    }
-    return ordered;
+    // Sort categories alphabetically
+    return Object.entries(groups)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([category, items]) => ({ category, items }));
   }, [uncheckedItems]);
 
   const totalQty = useMemo(
