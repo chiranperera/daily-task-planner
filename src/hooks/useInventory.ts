@@ -12,7 +12,7 @@ import {
 
 type Action =
   | { type: 'SET_ITEMS'; items: GroceryItem[] }
-  | { type: 'ADD_ITEM'; item: Omit<GroceryItem, 'id' | 'lastUpdated'> }
+  | { type: 'ADD_ITEM'; item: Omit<GroceryItem, 'id' | 'lastUpdated'>; id?: string }
   | { type: 'EDIT_ITEM'; id: string; updates: Partial<GroceryItem> }
   | { type: 'DELETE_ITEM'; id: string }
   | { type: 'QUICK_UPDATE_QTY'; id: string; qty: number }
@@ -21,6 +21,7 @@ type Action =
   | { type: 'IMPORT_ITEMS'; items: Omit<GroceryItem, 'id'>[] }
   | { type: 'SET_FILTERS'; filters: Partial<InventoryFilters> }
   | { type: 'REORDER'; activeId: string; overId: string }
+  | { type: 'REPLACE_ID'; oldId: string; newId: string }
   | { type: 'RESET_DATA' };
 
 interface State {
@@ -46,12 +47,20 @@ function reducer(state: State, action: Action): State {
     case 'ADD_ITEM': {
       const newItem: GroceryItem = {
         ...action.item,
-        id: crypto.randomUUID(),
+        id: action.id ?? crypto.randomUUID(),
         lastUpdated: today,
         order: state.items.length,
       };
       return { ...state, items: [...state.items, newItem] };
     }
+
+    case 'REPLACE_ID':
+      return {
+        ...state,
+        items: state.items.map((item) =>
+          item.id === action.oldId ? { ...item, id: action.newId } : item
+        ),
+      };
 
     case 'EDIT_ITEM':
       return {
@@ -191,13 +200,23 @@ export function useInventory() {
     [state.items]
   );
 
-  // After ADD_ITEM, sync the new item to the sheet
+  // After ADD_ITEM, sync the new item to the sheet and adopt the row-N id
+  // the sheet returns so subsequent edits/deletes match by id instead of
+  // falling back to name search.
   const addItem = useCallback(
     (item: Omit<GroceryItem, 'id' | 'lastUpdated'>) => {
-      dispatch({ type: 'ADD_ITEM', item });
+      const localId = crypto.randomUUID();
+      dispatch({ type: 'ADD_ITEM', item, id: localId });
       if (isGoogleSheetsConnected()) {
-        addItemToSheet({ ...item, lastUpdated: new Date().toISOString().split('T')[0] }).catch(console.error);
+        addItemToSheet({ ...item, lastUpdated: new Date().toISOString().split('T')[0] })
+          .then((saved) => {
+            if (saved && saved.id && saved.id !== localId) {
+              dispatch({ type: 'REPLACE_ID', oldId: localId, newId: saved.id });
+            }
+          })
+          .catch(console.error);
       }
+      return localId;
     },
     []
   );

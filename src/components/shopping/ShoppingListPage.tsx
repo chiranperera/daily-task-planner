@@ -16,10 +16,15 @@ import { ShoppingCard } from './ShoppingCard';
 import { ShoppingSearchAdd } from './ShoppingSearchAdd';
 import { Button } from '@/components/ui/button';
 import type { GroceryItem, ShoppingListItem } from '@/types';
-import { isGoogleSheetsConnected, updateItemInSheet, addItemToSheet } from '@/lib/sheets';
+import { isGoogleSheetsConnected, updateItemInSheet } from '@/lib/sheets';
 
 export function ShoppingListPage() {
-  const { items: inventoryItems, dispatch: inventoryDispatch, shopping } = useInventoryContext();
+  const {
+    items: inventoryItems,
+    dispatch: inventoryDispatch,
+    addItem: addInventoryItem,
+    shopping,
+  } = useInventoryContext();
   const { uncheckedItems, checkedItems, totalQty, dispatch } = shopping;
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -68,13 +73,9 @@ export function ShoppingListPage() {
         restockTo: item.qty,
         notes: item.notes,
       };
-      inventoryDispatch({ type: 'ADD_ITEM', item: newItem });
-      if (isGoogleSheetsConnected()) {
-        addItemToSheet({
-          ...newItem,
-          lastUpdated: new Date().toISOString().split('T')[0],
-        }).catch(console.error);
-      }
+      // Use the hook's addItem helper so the local id is swapped for the
+      // row-N id returned by the sheet.
+      addInventoryItem(newItem);
     }
   };
 

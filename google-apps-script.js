@@ -183,13 +183,21 @@ function addItem(item) {
   var info = findHeaders(sheet);
   if (!info) return null;
 
+  var colMap = info.colMap;
+
+  // Build set of mapped column indexes — we own these, everything else we
+  // leave alone (and try to copy formulas for).
+  var mappedCols = {};
+  for (var k in colMap) {
+    if (colMap.hasOwnProperty(k)) mappedCols[colMap[k]] = true;
+  }
+
   // Build a new row with values in the correct columns
   var newRow = [];
   for (var c = 0; c < info.totalCols; c++) {
     newRow.push('');
   }
 
-  var colMap = info.colMap;
   if (colMap.name !== undefined) newRow[colMap.name] = item.name || '';
   if (colMap.category !== undefined) newRow[colMap.category] = item.category || '';
   if (colMap.storage !== undefined) newRow[colMap.storage] = item.storage || '';
@@ -200,8 +208,37 @@ function addItem(item) {
   if (colMap.lastUpdated !== undefined) newRow[colMap.lastUpdated] = formatDate(new Date());
   if (colMap.notes !== undefined) newRow[colMap.notes] = item.notes || '';
 
+  // Grab formulas from the previous data row (if any) so we can copy them
+  // down into formula columns like Status / Need to Buy / Helper.
+  var prevFormulas = null;
+  var prevRowNum = sheet.getLastRow();
+  if (prevRowNum > info.headerRow) {
+    try {
+      prevFormulas = sheet.getRange(prevRowNum, 1, 1, info.totalCols).getFormulas()[0];
+    } catch (e) {
+      prevFormulas = null;
+    }
+  }
+
   sheet.appendRow(newRow);
   var lastRow = sheet.getLastRow();
+
+  // For each non-mapped column that had a formula in the previous row,
+  // copy that formula (with relative refs rewritten) into the new row.
+  if (prevFormulas) {
+    for (var ci = 0; ci < info.totalCols; ci++) {
+      if (mappedCols[ci]) continue;
+      var f = prevFormulas[ci];
+      if (f && typeof f === 'string' && f.charAt(0) === '=') {
+        var targetCell = sheet.getRange(prevRowNum, ci + 1);
+        targetCell.copyTo(
+          sheet.getRange(lastRow, ci + 1),
+          SpreadsheetApp.CopyPasteType.PASTE_FORMULA,
+          false
+        );
+      }
+    }
+  }
 
   return {
     id: 'row-' + lastRow,

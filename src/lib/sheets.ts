@@ -1,4 +1,5 @@
 import type { GroceryItem } from '@/types';
+import { normalizeCategory } from '@/types';
 
 const SCRIPT_URL_KEY = 'grocery-tracker-script-url';
 
@@ -51,7 +52,11 @@ async function callSheet(action: string, payload?: Record<string, unknown>): Pro
 
 export async function fetchAllItems(): Promise<GroceryItem[]> {
   const data = await callSheet('getAll') as { items: GroceryItem[] };
-  return data.items;
+  // Normalize category values so the app's strict Category union holds.
+  return (data.items || []).map((raw) => ({
+    ...raw,
+    category: normalizeCategory(raw.category as unknown as string),
+  }));
 }
 
 export async function addItemToSheet(item: Omit<GroceryItem, 'id'>): Promise<GroceryItem> {
