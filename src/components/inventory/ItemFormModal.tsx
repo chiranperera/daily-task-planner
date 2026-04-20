@@ -107,9 +107,9 @@ export function ItemFormModal({ isOpen, onClose, item, onSave }: ItemFormModalPr
               placeholder="e.g. White Rice"
               className="mt-1"
             />
-            {errors.name && <p className="text-xs text-destructive mt-0.5">{errors.name}</p>}
+            {errors.name && <p className="text-xs text-neutral-900 mt-0.5">{errors.name}</p>}
             {duplicateWarning && (
-              <p className="text-xs text-amber-600 mt-0.5 bg-amber-50 px-2 py-1 rounded">{duplicateWarning}</p>
+              <p className="text-xs text-neutral-700 mt-0.5 bg-neutral-100 border border-neutral-200 px-2 py-1 rounded">{duplicateWarning}</p>
             )}
           </div>
 
@@ -148,7 +148,7 @@ export function ItemFormModal({ isOpen, onClose, item, onSave }: ItemFormModalPr
                 inputMode="decimal"
                 className="mt-1"
               />
-              {errors.qtyOnHand && <p className="text-xs text-destructive mt-0.5">{errors.qtyOnHand}</p>}
+              {errors.qtyOnHand && <p className="text-xs text-neutral-900 mt-0.5">{errors.qtyOnHand}</p>}
             </div>
             <div>
               <label className="text-xs font-medium text-muted-foreground">Unit</label>

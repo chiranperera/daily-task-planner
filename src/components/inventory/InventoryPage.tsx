@@ -82,70 +82,99 @@ export function InventoryPage() {
   };
 
   return (
-    <div className="px-4 py-4 pb-2">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-lg font-bold text-foreground">Inventory</h2>
+    <div className="px-5 py-6 pb-4">
+      <div className="flex items-end justify-between mb-5">
+        <div>
+          <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-neutral-400">
+            Catalog
+          </p>
+          <h2 className="text-2xl font-semibold tracking-tight text-neutral-900 mt-1">
+            Inventory
+          </h2>
+        </div>
         <div className="flex gap-1.5">
-          <Button variant="outline" size="sm" className="h-7 gap-1" onClick={handleExport}>
+          <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={handleExport}>
             <Download className="w-3.5 h-3.5" />
             <span className="text-xs">Export</span>
           </Button>
-          <Button variant="outline" size="sm" className="h-7 gap-1" onClick={() => fileInputRef.current?.click()}>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 gap-1.5"
+            onClick={() => fileInputRef.current?.click()}
+          >
             <Upload className="w-3.5 h-3.5" />
             <span className="text-xs">Import</span>
           </Button>
-          <input ref={fileInputRef} type="file" accept=".csv" onChange={handleImport} className="hidden" />
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv"
+            onChange={handleImport}
+            className="hidden"
+          />
         </div>
       </div>
 
-      {/* Search + Filters */}
       <div className="space-y-2 mb-4">
         <Input
-          placeholder="Search items..."
+          placeholder="Search items"
           value={filters.search}
           onChange={(e) => dispatch({ type: 'SET_FILTERS', filters: { search: e.target.value } })}
         />
         <div className="flex gap-2">
           <Select
             value={filters.category}
-            onValueChange={(v) => dispatch({ type: 'SET_FILTERS', filters: { category: v as typeof filters.category } })}
+            onValueChange={(v) =>
+              dispatch({ type: 'SET_FILTERS', filters: { category: v as typeof filters.category } })
+            }
           >
-            <SelectTrigger className="h-8 text-xs flex-1">
+            <SelectTrigger className="h-9 text-xs flex-1">
               <SelectValue placeholder="Category" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="All">All Categories</SelectItem>
-              {CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+              <SelectItem value="All">All categories</SelectItem>
+              {CATEGORIES.map((c) => (
+                <SelectItem key={c} value={c}>
+                  {c}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
           <Select
             value={filters.status}
-            onValueChange={(v) => dispatch({ type: 'SET_FILTERS', filters: { status: v as typeof filters.status } })}
+            onValueChange={(v) =>
+              dispatch({ type: 'SET_FILTERS', filters: { status: v as typeof filters.status } })
+            }
           >
-            <SelectTrigger className="h-8 text-xs flex-1">
+            <SelectTrigger className="h-9 text-xs flex-1">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="All">All Status</SelectItem>
-              {STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+              <SelectItem value="All">All status</SelectItem>
+              {STATUSES.map((s) => (
+                <SelectItem key={s} value={s}>
+                  {s}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
       </div>
 
-      <p className="text-xs text-muted-foreground mb-3">{filteredItems.length} of {items.length} items</p>
+      <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-400 mb-3 tabular-nums">
+        {filteredItems.length} of {items.length} items
+      </p>
 
-      {/* Item List with Drag & Drop */}
       {filteredItems.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground">
-          <p className="text-base">No items found</p>
-          <p className="text-sm mt-1">Try adjusting your search or filters</p>
+        <div className="text-center py-16 border border-dashed border-neutral-200 rounded-lg">
+          <p className="text-sm font-medium text-neutral-900">No items found</p>
+          <p className="text-xs text-neutral-500 mt-1">Try adjusting your search or filters</p>
         </div>
       ) : (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={filteredItems.map((i) => i.id)} strategy={verticalListSortingStrategy}>
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               {filteredItems.map((item) => (
                 <InventoryCard
                   key={item.id}
@@ -163,28 +192,36 @@ export function InventoryPage() {
       {/* FAB */}
       <Button
         onClick={() => setShowAddForm(true)}
-        className="fixed bottom-18 right-4 w-14 h-14 rounded-full shadow-lg z-20 p-0"
+        className="fixed bottom-20 right-5 w-14 h-14 rounded-full shadow-lg z-20 p-0 bg-neutral-900 hover:bg-neutral-800"
         size="icon"
+        aria-label="Add item"
       >
-        <Plus className="w-6 h-6" />
+        <Plus className="w-5 h-5" />
       </Button>
 
-      {/* Add / Edit Form */}
       <ItemFormModal isOpen={showAddForm} onClose={() => setShowAddForm(false)} onSave={handleAddSave} />
-      <ItemFormModal isOpen={!!editItem} onClose={() => setEditItem(null)} item={editItem} onSave={handleEditSave} />
+      <ItemFormModal
+        isOpen={!!editItem}
+        onClose={() => setEditItem(null)}
+        item={editItem}
+        onSave={handleEditSave}
+      />
 
-      {/* Delete Confirmation */}
       <Dialog open={!!deleteItem} onOpenChange={(open) => !open && setDeleteItem(null)}>
         <DialogContent className="mx-4 max-w-sm">
           <DialogHeader>
-            <DialogTitle>Delete Item</DialogTitle>
+            <DialogTitle>Delete item</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete <strong>{deleteItem?.name}</strong>? This cannot be undone.
+              Delete <strong className="text-neutral-900">{deleteItem?.name}</strong>? This can't be undone.
             </DialogDescription>
           </DialogHeader>
-          <div className="flex gap-3 pt-2">
-            <Button variant="outline" className="flex-1" onClick={() => setDeleteItem(null)}>Cancel</Button>
-            <Button variant="destructive" className="flex-1" onClick={handleDelete}>Delete</Button>
+          <div className="flex gap-2 pt-2">
+            <Button variant="outline" className="flex-1" onClick={() => setDeleteItem(null)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" className="flex-1" onClick={handleDelete}>
+              Delete
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

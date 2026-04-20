@@ -1,9 +1,7 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical, Pencil, Trash2, Minus, Plus } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { ProductIcon } from '@/components/shared/ProductIcon';
 import type { GroceryItemWithStatus, ItemStatus } from '@/types';
 import { cn } from '@/lib/utils';
@@ -40,90 +38,104 @@ export function InventoryCard({ item, onEdit, onDelete, onQtyChange }: Inventory
 
   return (
     <div ref={setNodeRef} style={style}>
-      <Card className={cn('transition-shadow', isDragging && 'shadow-lg')}>
-        <CardContent className="p-3">
+      <div
+        className={cn(
+          'bg-white border border-neutral-200 rounded-lg transition-shadow',
+          isDragging && 'shadow-md'
+        )}
+      >
+        <div className="p-3">
           <div className="flex items-start gap-2">
-            {/* Drag Handle */}
+            {/* Drag handle */}
             <button
               {...attributes}
               {...listeners}
-              className="drag-handle mt-1 p-0.5 text-muted-foreground/50 hover:text-muted-foreground flex-shrink-0"
+              className="drag-handle mt-1 p-0.5 text-neutral-300 hover:text-neutral-500 flex-shrink-0"
+              aria-label="Drag"
             >
               <GripVertical className="w-4 h-4" />
             </button>
 
-            {/* Product Icon */}
-            <ProductIcon category={item.category} className="mt-0.5" />
+            <ProductIcon category={item.category} name={item.name} className="mt-0.5" />
 
-            {/* Item Info */}
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <h3 className="text-sm font-semibold text-foreground truncate">{item.name}</h3>
-                <Badge variant={statusBadgeVariant[item.status]} className="text-[10px] flex-shrink-0">
+              <div className="flex items-start justify-between gap-2">
+                <h3 className="text-sm font-semibold text-neutral-900 truncate">
+                  {item.name}
+                </h3>
+                <Badge variant={statusBadgeVariant[item.status]} className="flex-shrink-0 mt-0.5">
                   {item.status}
                 </Badge>
               </div>
-              <div className="flex items-center gap-2 mt-0.5">
-                <span className="text-[11px] text-muted-foreground">{item.category}</span>
-                <span className="text-[11px] text-muted-foreground/50">·</span>
-                <span className="text-[11px] text-muted-foreground">{item.storage}</span>
+              <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-neutral-500">
+                <span>{item.category}</span>
+                <span className="text-neutral-300">·</span>
+                <span>{item.storage}</span>
               </div>
               {item.notes && (
-                <p className="text-[11px] text-muted-foreground italic mt-0.5 truncate">{item.notes}</p>
+                <p className="text-[11px] text-neutral-500 italic mt-0.5 truncate">
+                  {item.notes}
+                </p>
               )}
 
-              {/* Inline Stepper + Actions Row */}
-              <div className="flex items-center justify-between mt-2">
-                {/* Qty Stepper */}
+              {/* Stepper + actions */}
+              <div className="flex items-center justify-between mt-3">
                 <div className="flex items-center gap-1">
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="h-7 w-7 rounded-full"
+                  <button
                     onClick={() => onQtyChange(item.id, Math.max(0, item.qtyOnHand - 0.5))}
+                    className="h-7 w-7 rounded-full border border-neutral-200 flex items-center justify-center text-neutral-700 hover:bg-neutral-100 transition-colors"
+                    aria-label="Decrease"
                   >
                     <Minus className="w-3 h-3" />
-                  </Button>
-                  <div className="min-w-[4rem] text-center">
-                    <span className="text-base font-bold text-foreground">{item.qtyOnHand}</span>
-                    <span className="text-[11px] text-muted-foreground ml-0.5">{item.unit}</span>
+                  </button>
+                  <div className="min-w-[4rem] text-center tabular-nums">
+                    <span className="text-base font-semibold text-neutral-900">
+                      {item.qtyOnHand}
+                    </span>
+                    <span className="text-[11px] text-neutral-500 ml-0.5">{item.unit}</span>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="h-7 w-7 rounded-full"
+                  <button
                     onClick={() => onQtyChange(item.id, item.qtyOnHand + 0.5)}
+                    className="h-7 w-7 rounded-full border border-neutral-200 flex items-center justify-center text-neutral-700 hover:bg-neutral-100 transition-colors"
+                    aria-label="Increase"
                   >
                     <Plus className="w-3 h-3" />
-                  </Button>
+                  </button>
                 </div>
 
-                {/* Edit / Delete - Well separated */}
-                <div className="flex items-center gap-3">
-                  <Button variant="ghost" size="sm" className="h-7 gap-1 text-primary" onClick={() => onEdit(item)}>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => onEdit(item)}
+                    className="h-7 px-2.5 rounded-md flex items-center gap-1 text-neutral-700 hover:bg-neutral-100 transition-colors"
+                  >
                     <Pencil className="w-3.5 h-3.5" />
-                    <span className="text-xs">Edit</span>
-                  </Button>
-                  <Button variant="ghost" size="sm" className="h-7 gap-1 text-destructive" onClick={() => onDelete(item)}>
+                    <span className="text-xs font-medium">Edit</span>
+                  </button>
+                  <button
+                    onClick={() => onDelete(item)}
+                    className="h-7 px-2.5 rounded-md flex items-center gap-1 text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900 transition-colors"
+                  >
                     <Trash2 className="w-3.5 h-3.5" />
-                    <span className="text-xs">Delete</span>
-                  </Button>
+                    <span className="text-xs font-medium">Delete</span>
+                  </button>
                 </div>
               </div>
 
               {/* Meta */}
-              <div className="flex items-center gap-3 mt-1.5 text-[10px] text-muted-foreground">
-                <span>Min: {item.minLevel}</span>
-                <span>Restock: {item.restockTo}</span>
+              <div className="flex items-center gap-3 mt-2 pt-2 border-t border-neutral-100 text-[10px] text-neutral-500 tabular-nums">
+                <span>Min {item.minLevel}</span>
+                <span>Restock {item.restockTo}</span>
                 {item.needToBuy > 0 && (
-                  <span className="text-red-500 font-medium">Need {item.needToBuy}</span>
+                  <span className="font-semibold text-neutral-900">
+                    Need {item.needToBuy}
+                  </span>
                 )}
                 <span className="ml-auto">{item.lastUpdated}</span>
               </div>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }

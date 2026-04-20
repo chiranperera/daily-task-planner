@@ -50,17 +50,30 @@ export function ShoppingListPage() {
         const newQty = existingItem.qtyOnHand + item.qty;
         inventoryDispatch({ type: 'EDIT_ITEM', id: existingItem.id, updates: { qtyOnHand: newQty } });
         if (isGoogleSheetsConnected()) {
-          updateItemInSheet({ ...existingItem, qtyOnHand: newQty, lastUpdated: new Date().toISOString().split('T')[0] }).catch(console.error);
+          updateItemInSheet({
+            ...existingItem,
+            qtyOnHand: newQty,
+            lastUpdated: new Date().toISOString().split('T')[0],
+          }).catch(console.error);
         }
       }
     } else {
       const newItem: Omit<GroceryItem, 'id' | 'lastUpdated'> = {
-        name: item.name, category: item.category, storage: item.storage,
-        qtyOnHand: item.qty, unit: item.unit, minLevel: 0, restockTo: item.qty, notes: item.notes,
+        name: item.name,
+        category: item.category,
+        storage: item.storage,
+        qtyOnHand: item.qty,
+        unit: item.unit,
+        minLevel: 0,
+        restockTo: item.qty,
+        notes: item.notes,
       };
       inventoryDispatch({ type: 'ADD_ITEM', item: newItem });
       if (isGoogleSheetsConnected()) {
-        addItemToSheet({ ...newItem, lastUpdated: new Date().toISOString().split('T')[0] }).catch(console.error);
+        addItemToSheet({
+          ...newItem,
+          lastUpdated: new Date().toISOString().split('T')[0],
+        }).catch(console.error);
       }
     }
   };
@@ -72,33 +85,43 @@ export function ShoppingListPage() {
   };
 
   return (
-    <div className="px-4 py-4">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
+    <div className="px-5 py-6">
+      <div className="flex items-end justify-between mb-5">
         <div>
-          <h2 className="text-lg font-bold text-foreground">Shopping List</h2>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-neutral-400">
+            List
+          </p>
+          <h2 className="text-2xl font-semibold tracking-tight text-neutral-900 mt-1">
+            Shopping
+          </h2>
+          <p className="text-[11px] text-neutral-500 tabular-nums mt-1">
             {uncheckedItems.length} items · {totalQty} total units
           </p>
         </div>
         <Button
-          size="sm" className="h-8 gap-1"
+          size="sm"
+          className="h-8 gap-1.5"
           variant={showAddForm ? 'outline' : 'default'}
           onClick={() => setShowAddForm(!showAddForm)}
         >
-          {showAddForm ? <span className="text-xs">Done</span> : <><Plus className="w-3.5 h-3.5" /><span className="text-xs">Add</span></>}
+          {showAddForm ? (
+            <span className="text-xs">Done</span>
+          ) : (
+            <>
+              <Plus className="w-3.5 h-3.5" />
+              <span className="text-xs">Add</span>
+            </>
+          )}
         </Button>
       </div>
 
-      {/* Added confirmation */}
       {lastAdded && (
-        <div className="mb-3 flex items-center gap-2 bg-emerald-50 text-emerald-700 text-xs font-medium px-3 py-2 rounded-lg">
+        <div className="mb-3 flex items-center gap-2 bg-neutral-900 text-white text-xs font-medium px-3 py-2 rounded-md">
           <Check className="w-3.5 h-3.5" />
-          Added "{lastAdded}" to shopping list
+          Added "{lastAdded}" to list
         </div>
       )}
 
-      {/* Search-first Add Form */}
       {showAddForm && (
         <div className="mb-4">
           <ShoppingSearchAdd
@@ -109,11 +132,10 @@ export function ShoppingListPage() {
         </div>
       )}
 
-      {/* Unchecked Items — flat list with drag-and-drop, always visible */}
       {uncheckedItems.length > 0 && (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={uncheckedItems.map((i) => i.id)} strategy={verticalListSortingStrategy}>
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               {uncheckedItems.map((item) => (
                 <ShoppingCard
                   key={item.id}
@@ -121,7 +143,10 @@ export function ShoppingListPage() {
                   isEditing={editingId === item.id}
                   onCheck={() => handleCheck(item.id)}
                   onStartEdit={() => setEditingId(item.id)}
-                  onSaveEdit={(updates) => { dispatch({ type: 'EDIT_ITEM', id: item.id, updates }); setEditingId(null); }}
+                  onSaveEdit={(updates) => {
+                    dispatch({ type: 'EDIT_ITEM', id: item.id, updates });
+                    setEditingId(null);
+                  }}
                   onCancelEdit={() => setEditingId(null)}
                   onDelete={() => dispatch({ type: 'DELETE_ITEM', id: item.id })}
                   onQtyChange={(qty) => dispatch({ type: 'UPDATE_QTY', id: item.id, qty })}
@@ -133,26 +158,32 @@ export function ShoppingListPage() {
       )}
 
       {uncheckedItems.length === 0 && !showAddForm && (
-        <div className="text-center py-12 text-muted-foreground">
-          <ShoppingCart className="w-12 h-12 mx-auto mb-2 opacity-30" />
-          <p className="text-base font-medium">Shopping list is empty</p>
-          <p className="text-sm mt-1">Search and add items you need to buy</p>
-          <Button size="sm" className="mt-4 gap-1" onClick={() => setShowAddForm(true)}>
+        <div className="text-center py-16 border border-dashed border-neutral-200 rounded-lg">
+          <ShoppingCart className="w-10 h-10 mx-auto mb-3 text-neutral-300" />
+          <p className="text-sm font-medium text-neutral-900">Your list is empty</p>
+          <p className="text-xs text-neutral-500 mt-1">
+            Search and add items you need to buy
+          </p>
+          <Button size="sm" className="mt-4 gap-1.5" onClick={() => setShowAddForm(true)}>
             <Plus className="w-3.5 h-3.5" /> Add item
           </Button>
         </div>
       )}
 
-      {/* Bought Items */}
       {checkedItems.length > 0 && (
-        <div className="mt-6">
+        <div className="mt-8">
           <div className="flex items-center justify-between mb-2">
-            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Bought ({checkedItems.length})</h3>
-            <Button variant="ghost" size="sm" className="h-6 text-xs text-muted-foreground gap-1" onClick={() => dispatch({ type: 'REMOVE_CHECKED' })}>
+            <h3 className="text-[11px] font-medium text-neutral-400 uppercase tracking-[0.18em]">
+              Bought ({checkedItems.length})
+            </h3>
+            <button
+              onClick={() => dispatch({ type: 'REMOVE_CHECKED' })}
+              className="text-xs text-neutral-500 hover:text-neutral-900 flex items-center gap-1"
+            >
               <Trash2 className="w-3 h-3" /> Clear
-            </Button>
+            </button>
           </div>
-          <div className="space-y-2 opacity-60">
+          <div className="space-y-1.5 opacity-50">
             {checkedItems.map((item) => (
               <ShoppingCard
                 key={item.id}

@@ -18,8 +18,10 @@ export function isGoogleSheetsConnected(): boolean {
   return !!getScriptUrl();
 }
 
+type SheetItem = Omit<GroceryItem, 'id' | 'order'>;
+
 // Strip fields that shouldn't be sent to the sheet
-function toSheetItem(item: Record<string, unknown>): Record<string, unknown> {
+function toSheetItem(item: GroceryItem | Omit<GroceryItem, 'id'>): SheetItem {
   return {
     name: item.name,
     category: item.category,
